@@ -13,11 +13,12 @@ Zero-based monthly budgeting app. Server-rendered Go + Datastar (hypermedia, not
 
 ## Tech Stack
 
-- **Backend:** Go, `html/template`, Datastar for partial-page updates
-- **Database:** PostgreSQL
-- **Auth:** bcrypt + secure HTTP-only cookies (no OAuth for MVP)
-- **No JSON APIs** — server returns HTML fragments, not JSON
+- **Backend:** Go, `templ` (compile-time type-safe templates), Datastar for partial-page updates
+- **Database:** PostgreSQL via `pgx/v5`, abstracted behind `shared_domain.DatabasePort`
+- **Auth:** bcrypt + `gorilla/sessions` + `gorilla/csrf` + secure HTTP-only cookies (no OAuth for MVP)
+- **Content negotiation:** Same endpoints return HTML fragments (Datastar SSE) or JSON (RFC 9457 Problem Details) based on `Accept` header. No JSON APIs — but JSON error responses exist.
 - **No bank sync** — manual entry only for MVP
+- **No oops** — sentinel errors with `fmt.Errorf("%w")` wrapping at each layer
 
 ## Architecture
 
@@ -25,6 +26,8 @@ Monorepo with vertical slices. Each module in `internal/` owns its domain logic,
 
 ```
 cmd/              # Service entry points
+  web/            # HTTP server + routes
+  migrate/        # DB migration runner
 internal/         # Domain modules (vertical slice)
   auth/           # Signup, login, logout, sessions
   user/           # Profile, onboarding, default categories
@@ -33,8 +36,17 @@ internal/         # Domain modules (vertical slice)
   transaction/    # CRUD for transactions
   account/        # CRUD for accounts, balance tracking
   transfer/       # Atomic account-to-account transfers
-  web/            # Routes, Datastar handlers, HTML templates (thin adapter)
-pkg/              # Shared utilities (db, logger, config)
+pkg/              # Shared packages
+  server/         # HTTP server setup (mux, middleware)
+  shared_domain/  # Core interfaces (DatabasePort, Logger, WorkUnit, List[T])
+  database/       # pgx pool, ContextRouter, PgWorkUnit
+  di/             # Thin wrapper over samber/do/v2
+  sqlcraft/       # Fluent SQL query builder
+  dafi/           # Dynamic filtering/pagination/sorting
+  httpresponse/   # RFC 9457 Problem Details (net/http)
+  validation/     # Struct validation (ozzo, without oops)
+  null/           # Nullable types (guregu/null/v6)
+  ui/             # Shared templ components (layout, button, shell)
 ```
 
 ## Key Conventions
@@ -55,14 +67,20 @@ pkg/              # Shared utilities (db, logger, config)
 
 ## API Pattern
 
-All endpoints return HTML fragments via Datastar. Key routes:
+All endpoints support content negotiation. Handlers check context value set by middleware:
+- `Accept: application/json` → JSON (RFC 9457 Problem Details)
+- `Datastar-Request` header → HTML fragments via SSE
+- Neither → full HTML page (browser navigation)
+- POST without JS → 303 redirect (PRG fallback)
+
+Key routes:
 - `POST /budget/reallocate` — move funds between categories
 - `POST /transactions` — add transaction, returns updated list + budget summary
 - `POST /month/close` — close month with surplus decisions
 
 ## Testing Strategy
 
-Use Go `testing` + `testify/assert`. Integration tests against real PostgreSQL (testcontainers-go or local ephemeral DB). Unit tests can use in-memory stubs for storage interfaces.
+Use Go `testing` + `testify/assert`. Integration tests against real PostgreSQL (testcontainers-go). Unit tests can use in-memory stubs for storage interfaces.
 
 Priority order: Budget/Month > Transfer > Transaction > Category > Auth.
 

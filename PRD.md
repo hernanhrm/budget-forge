@@ -45,13 +45,13 @@ Budget Forge is a web-based zero-based budgeting application that helps users pl
 
 ### Modules
 
-The following modules will be built in `internal/`, each as a vertical slice containing its own domain logic, storage interface, HTTP handlers, and templates:
+The following modules will be built in `internal/`, each as a vertical slice following the omni-commerce hexagonal pattern: `port.go` (interfaces), `domain.go` (types), `service.go` (logic), `repository.go` (sqlcraft), `handler.go` (net/http), `di.go` (samber/do wiring), and `ui/` (templ components).
 
 1. **Auth Module** (`internal/auth/`)
    - Handles user signup, login, logout, and session management.
    - Interface: `AuthService` with methods `Register(email, password) (User, error)`, `Login(email, password) (Session, error)`, `Logout(sessionID) error`.
-   - Uses bcrypt for password hashing and secure HTTP-only cookies for sessions.
-   - Depends on: `pkg/db` for persistence.
+   - Uses bcrypt for password hashing and `gorilla/sessions` + `gorilla/csrf` for secure HTTP-only cookies.
+   - Depends on: `shared_domain.DatabasePort` for persistence.
 
 2. **User/Onboarding Module** (`internal/user/`)
    - Handles user profile and the warm-start onboarding flow.
@@ -80,7 +80,7 @@ The following modules will be built in `internal/`, each as a vertical slice con
      - `List(userID) ([]Category, error)`
      - `CreateGroup(userID, name) (Group, error)`
    - Categories have `direction`: `debit` (expense) or `credit` (income).
-   - Depends on: `pkg/db`.
+   - Depends on: `shared_domain.DatabasePort`.
 
 5. **Transaction Module** (`internal/transaction/`)
    - CRUD for transactions. Transactions are linked to a Category and optionally an Account.
@@ -91,7 +91,7 @@ The following modules will be built in `internal/`, each as a vertical slice con
      - `ListByMonth(userID, year, month) ([]Transaction, error)`
      - `ListByCategory(userID, categoryID, year, month) ([]Transaction, error)`
    - Positive amount = income/refund; negative amount = expense.
-   - Depends on: `pkg/db`, Account Module (for balance updates).
+   - Depends on: `shared_domain.DatabasePort`, Account Module (for balance updates).
 
 6. **Account Module** (`internal/account/`)
    - CRUD for accounts and balance tracking.
@@ -99,7 +99,7 @@ The following modules will be built in `internal/`, each as a vertical slice con
      - `Create(userID, name, initialBalance) (Account, error)`
      - `UpdateBalance(userID, accountID, delta) error`
      - `List(userID) ([]Account, error)`
-   - Depends on: `pkg/db`.
+   - Depends on: `shared_domain.DatabasePort`.
 
 7. **Transfer Module** (`internal/transfer/`)
    - Handles two-phase account-to-account transfers.
@@ -108,11 +108,13 @@ The following modules will be built in `internal/`, each as a vertical slice con
    - Deep module: transfer atomicity is critical and should be encapsulated behind a simple interface.
    - Depends on: Transaction Module, Account Module.
 
-8. **Web/HTTP Module** (`internal/web/`)
-   - Routes, Datastar handlers, and HTML templates.
-   - Not a deep module — it's a thin adapter layer that delegates to domain services.
-   - Uses Go's `html/template` with Datastar for partial-page updates.
-   - Pages: Budget (home), Transactions, Accounts, Settings, Login, Signup.
+8. **Entry Points** (`cmd/`)
+   - `cmd/web/main.go`: HTTP server binary. Boots server from `pkg/server`, wires DI container via `samber/do`, mounts routes from `cmd/web/routes/`, graceful shutdown.
+   - `cmd/migrate/main.go`: Runs `golang-migrate` SQL migrations against the database.
+   - Route registration lives in `cmd/web/routes/router.go`. Handlers live in `internal/{module}/handler.go`.
+   - Shared templ components live in `pkg/ui/` (layout, button, shell). Module-specific components live in `internal/{module}/ui/`.
+   - Content negotiation: `Accept: application/json` → RFC 9457 Problem Details. `Datastar-Request` header → HTML fragments via SSE. No header → full page HTML.
+   - Uses `templ` for compile-time type-safe templates. Not `html/template`.
 
 ### Schema Decisions
 
@@ -127,7 +129,13 @@ The following modules will be built in `internal/`, each as a vertical slice con
 
 ### API Contracts
 
-All endpoints are server-rendered HTML via Datastar. JSON APIs are not used for the MVP — the server returns HTML fragments for partial updates and full pages for navigation.
+All endpoints support content negotiation:
+- **Datastar header present** → server returns HTML fragments for partial updates via SSE.
+- **Accept: application/json** → server returns RFC 9457 Problem Details (errors) or JSON responses.
+- **Neither** → server returns full HTML pages for browser navigation.
+- **POST without JS** → server returns 303 redirect (PRG pattern for form submissions).
+
+The middleware establishes response format via request context.
 
 Key interactions:
 - **Reallocation**: POST `/budget/reallocate` with `from_month_category_id`, `to_month_category_id`, `amount`. Returns updated budget fragment.
@@ -136,12 +144,18 @@ Key interactions:
 
 ### Architecture Decisions
 
-- **Monorepo with vertical slices**: Each domain module in `internal/` owns its own logic, storage queries, and handlers. This keeps the codebase navigable and lets agents work on one slice at a time.
-- **Hypermedia-driven (Datastar)**: No JSON APIs, no client-side state management. The server owns all state. Datastar provides SPA-like interactivity via server-pushed HTML fragments.
+- **Monorepo with vertical slices**: Each domain module in `internal/` owns its own logic, storage, handlers, and templates. Uses hexagonal (ports-and-adapters) pattern: `port.go` (interfaces), `domain.go` (types), `service.go` (logic), `repository.go` (sqlcraft + pgx), `handler.go` (net/http), `di.go` (wiring).
+- **Hypermedia-driven (Datastar) + Content Negotiation**: Datastar provides SPA-like interactivity via server-pushed HTML fragments. Same endpoints also produce JSON (RFC 9457 Problem Details) for API consumers. Response format controlled by middleware based on `Accept` and Datastar headers.
+- **templ templates**: Compile-time type-safe Go code generation. Not `html/template`. Templ components accept domain types directly.
+- **pgx/v5 + shared_domain.DatabasePort**: PostgreSQL via `pgx/v5`, abstracted behind `DatabasePort` interface. `ContextRouter` routes queries to transaction or pool. `WorkUnit` manages transaction boundaries atomically.
+- **samber/do for DI**: Thin wrapper (`pkg/di`) over `samber/do/v2`. Per-module `di.go` registers Repository, Service, Handler. Per-request scope for request-scoped values.
+- **sqlcraft + dafi**: Fluent SQL query builder and dynamic filtering/pagination. Imported from omni-commerce, rewritten to remove `samber/oops` dependency.
+- **Sentinel errors + wrapping**: No `samber/oops`. Each module defines sentinel errors. Services wrap with `fmt.Errorf("%w", err)`. Handlers use callback function to map sentinels to HTTP status codes.
 - **Forecast budgeting**: Users plan full expected income at month start. The budget is zero-based when total planned income equals total planned expenses.
 - **Immutable closed months**: Once a month is closed, its data is read-only. Historical accuracy is prioritized over edit flexibility.
 - **Manual entry only**: No bank sync for MVP. Fast manual entry with smart defaults (today's date, last-used category).
 - **Positive amounts with inferred sign**: Users enter positive numbers. The app applies sign based on category direction. This matches mental models.
+- **Testcontainers-go**: Integration tests against real PostgreSQL in Docker containers. Co-located test files (`*_test.go`). `testify/assert` for assertions.
 
 ## Testing Decisions
 
@@ -182,7 +196,7 @@ Tests should verify **external behavior and invariants**, not implementation det
 
 ### Prior Art
 
-There is no existing test suite in the codebase. All tests will be net-new. Use Go's standard `testing` package with `testify/assert` for readability. Use `testcontainers-go` or a local ephemeral PostgreSQL database for integration tests against real SQL. Unit tests that don't touch the database can use in-memory stubs for the storage interface.
+There is no existing test suite in the codebase. All tests will be net-new. Use Go's standard `testing` package with `testify/assert` for readability. Use `testcontainers-go` for integration tests against real PostgreSQL in Docker containers. Unit tests that don't touch the database can use in-memory stubs for the storage interface.
 
 ## Out of Scope
 
