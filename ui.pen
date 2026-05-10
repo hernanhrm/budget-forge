@@ -1,0 +1,195 @@
+{
+  "version": "2.11",
+  "children": [
+    {
+      "type": "frame",
+      "id": "bi8Au",
+      "x": -1024,
+      "y": 71,
+      "name": "Frame",
+      "clip": true,
+      "width": 800,
+      "height": 600,
+      "fill": "#FFFFFF",
+      "layout": "none"
+    }
+  ],
+  "variables": {
+    "accent": {
+      "type": "color",
+      "value": "#7A9E7E"
+    },
+    "background": {
+      "type": "color",
+      "value": "#181C19"
+    },
+    "border": {
+      "type": "color",
+      "value": "#7A9E7E"
+    },
+    "font-body": {
+      "type": "string",
+      "value": "Geist"
+    },
+    "font-display": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "neutral": {
+      "type": "color",
+      "value": "#E1E5DF"
+    },
+    "primary": {
+      "type": "color",
+      "value": "#7A9E7E"
+    },
+    "radius-md": {
+      "type": "number",
+      "value": 1
+    },
+    "secondary": {
+      "type": "color",
+      "value": "#E1E5DF"
+    },
+    "spacing-base": {
+      "type": "number",
+      "value": 5.6
+    },
+    "spacing-gap": {
+      "type": "number",
+      "value": 2
+    },
+    "spacing-lg": {
+      "type": "number",
+      "value": 11.2
+    },
+    "spacing-md": {
+      "type": "number",
+      "value": 5.6
+    },
+    "spacing-sm": {
+      "type": "number",
+      "value": 1
+    },
+    "spacing-xl": {
+      "type": "number",
+      "value": 16.8
+    },
+    "surface": {
+      "type": "color",
+      "value": "#7A9E7E"
+    },
+    "tertiary": {
+      "type": "color",
+      "value": "#79A9A0"
+    },
+    "text-primary": {
+      "type": "color",
+      "value": "#E1E5DF"
+    },
+    "text-secondary": {
+      "type": "color",
+      "value": "#7A9E7E"
+    },
+    "border-light": {
+      "type": "color",
+      "value": "#d6dbde"
+    },
+    "brand-green": {
+      "type": "color",
+      "value": "#006241"
+    },
+    "canvas": {
+      "type": "color",
+      "value": "#f2f0eb"
+    },
+    "card-bg": {
+      "type": "color",
+      "value": "#ffffff"
+    },
+    "ceramic": {
+      "type": "color",
+      "value": "#edebe9"
+    },
+    "font-primary": {
+      "type": "string",
+      "value": "Inter"
+    },
+    "gold": {
+      "type": "color",
+      "value": "#cba258"
+    },
+    "green-light": {
+      "type": "color",
+      "value": "#d4e9e2"
+    },
+    "house-green": {
+      "type": "color",
+      "value": "#1E3932"
+    },
+    "neutral-cool": {
+      "type": "color",
+      "value": "#f9f9f9"
+    },
+    "primary-cta": {
+      "type": "color",
+      "value": "#00754A"
+    },
+    "radius-card": {
+      "type": "number",
+      "value": 12
+    },
+    "radius-pill": {
+      "type": "number",
+      "value": 50
+    },
+    "red": {
+      "type": "color",
+      "value": "#c82014"
+    },
+    "spacing-1": {
+      "type": "number",
+      "value": 4
+    },
+    "spacing-2": {
+      "type": "number",
+      "value": 8
+    },
+    "spacing-3": {
+      "type": "number",
+      "value": 16
+    },
+    "spacing-4": {
+      "type": "number",
+      "value": 24
+    },
+    "spacing-5": {
+      "type": "number",
+      "value": 32
+    },
+    "text-black": {
+      "type": "color",
+      "value": "#000000DE"
+    },
+    "text-soft": {
+      "type": "color",
+      "value": "#00000094"
+    },
+    "text-white": {
+      "type": "color",
+      "value": "#ffffff"
+    },
+    "text-white-soft": {
+      "type": "color",
+      "value": "#FFFFFFB3"
+    },
+    "shadow-soft": {
+      "type": "color",
+      "value": "#0000003D"
+    },
+    "shadow-whisper": {
+      "type": "color",
+      "value": "#00000024"
+    }
+  }
+}
