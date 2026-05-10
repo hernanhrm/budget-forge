@@ -1,0 +1,4 @@
+[tasks.web]
+description = "Run the web server"
+run = "go run ."
+dir = "."

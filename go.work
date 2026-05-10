@@ -1,0 +1,17 @@
+go 1.26.0
+
+use (
+	./cmd/migrate
+	./cmd/web
+	./pkg/dafi
+	./pkg/database
+	./pkg/di
+	./pkg/httpresponse
+	./pkg/localconfig
+	./pkg/logger
+	./pkg/null
+	./pkg/server
+	./pkg/shared_domain
+	./pkg/sqlcraft
+	./pkg/validation
+)

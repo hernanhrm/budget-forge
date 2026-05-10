@@ -1,0 +1,25 @@
+experimental_monorepo_root = true
+
+[env]
+DATABASE_URL = "postgres://budgetforge:budgetforge@localhost:5432/budgetforge?sslmode=disable"
+PORT = "8080"
+
+[tasks.db-up]
+description = "Start PostgreSQL container"
+run = "docker compose up -d"
+
+[tasks.db-down]
+description = "Stop PostgreSQL container"
+run = "docker compose down"
+
+[tasks.db-reset]
+description = "Reset PostgreSQL container (destroy volumes)"
+run = "docker compose down -v && docker compose up -d"
+
+[tasks.migrate]
+description = "Run database migrations"
+run = "cd cmd/migrate && go run ."
+
+[tasks.migrate-down]
+description = "Rollback all database migrations"
+run = "cd cmd/migrate && go run . -- -down"
